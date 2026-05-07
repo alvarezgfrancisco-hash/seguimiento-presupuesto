@@ -57,3 +57,11 @@ if not st.session_state.datos.empty:
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         st.session_state.datos.to_excel(writer, index=False)
     st.download_button(label="📥 Descargar Excel para enviar", data=output.getvalue(), file_name="presupuesto.xlsx")
+destinatario = "profe@ejemplo.com"  # Pon aquí el correo de tu profesora
+asunto = "Entrega Seguimiento Presupuesto"
+cuerpo = "Hola, adjunto el registro de presupuesto de la obra."
+
+# Crear el enlace de correo
+mailto_link = f"mailto:{destinatario}?subject={asunto}&body={cuerpo}"
+
+st.markdown(f'<a href="{mailto_link}" target="_blank" style="text-decoration: none;"><button style="width: 100%; background-color: #ff4b4b; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">📧 Abrir correo para enviar</button></a>', unsafe_allow_html=True)
