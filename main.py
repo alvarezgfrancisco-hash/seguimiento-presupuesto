@@ -1,67 +1,31 @@
-import streamlit as st
-import pandas as pd
-from datetime import date
-import io
+def enviar_correo(archivo_excel):
+    # --- CONFIGURACIÓN USANDO SECRETS ---
+    remitente = st.secrets["email_usuario"]
+    password = st.secrets["email_password"]
+    destinatario = st.secrets["email_profe"]
 
-# Configuración de página
-st.set_page_config(page_title="Seguimiento Presupuesto", page_icon="💰")
+    msg = MIMEMultipart()
+    msg['From'] = remitente
+    msg['To'] = destinatario
+    msg['Subject'] = "Entrega Seguimiento Presupuesto - Automatizado"
 
-st.title("💰 Seguimiento de Presupuesto")
-st.write("Registra los albaranes y gastos de la obra.")
+    cuerpo = "Hola Ana, adjunto envío el presupuesto generado automáticamente desde mi app."
+    msg.attach(MIMEText(cuerpo, 'plain'))
 
-# Inicializar datos
-if 'datos' not in st.session_state:
-    st.session_state.datos = pd.DataFrame(columns=[
-        "Fecha", "Albarán", "Trabajador", "Partida", "Gasto (€)", "Comentarios", "Foto"
-    ])
+    # Adjuntar el archivo Excel
+    adjunto = MIMEBase('application', 'octet-stream')
+    adjunto.set_payload(archivo_excel)
+    encoders.encode_base64(adjunto)
+    adjunto.add_header('Content-Disposition', "attachment; filename= presupuesto.xlsx")
+    msg.attach(adjunto)
 
-# Formulario (siguiendo tu estilo visual)
-with st.container():
-    col1, col2 = st.columns(2)
-    with col1:
-        fecha = st.date_input("Fecha", date.today())
-        n_albaran = st.text_input("Número de albarán")
-        trabajador = st.text_input("Nombre del trabajador")
-    with col2:
-        partida = st.selectbox("Partida del presupuesto asociada:", [
-            "Material Eléctrico", "Mano de Obra", "Herramientas", "Desplazamientos", "Otros"
-        ])
-        gastos = st.number_input("Gastos de esa partida (€)", min_value=0.0, step=0.01)
-    
-    comentarios = st.text_area("Comentarios")
-    foto = st.file_uploader("Subir foto del albarán (Nota Extra 📸)", type=["jpg", "png", "pdf"])
-
-    if st.button("Añadir al registro local"):
-        if n_albaran and trabajador and gastos > 0:
-            nueva_fila = {
-                "Fecha": fecha.strftime("%Y/%m/%d"),
-                "Albarán": n_albaran,
-                "Trabajador": trabajador,
-                "Partida": partida,
-                "Gasto (€)": gastos,
-                "Comentarios": comentarios,
-                "Foto": "✅ Adjunta" if foto else "❌ No"
-            }
-            st.session_state.datos = pd.concat([st.session_state.datos, pd.DataFrame([nueva_fila])], ignore_index=True)
-            st.success("Añadido correctamente")
-        else:
-            st.error("Rellena Albarán, Trabajador e Importe")
-
-st.divider()
-st.subheader("Registros actuales")
-st.dataframe(st.session_state.datos, use_container_width=True)
-
-# Botón Excel
-if not st.session_state.datos.empty:
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        st.session_state.datos.to_excel(writer, index=False)
-    st.download_button(label="📥 Descargar Excel para enviar", data=output.getvalue(), file_name="presupuesto.xlsx")
-destinatario = "profe@ejemplo.com"  # Pon aquí el correo de tu profesora
-asunto = "Entrega Seguimiento Presupuesto"
-cuerpo = "Hola, adjunto el registro de presupuesto de la obra."
-
-# Crear el enlace de correo
-mailto_link = f"mailto:{destinatario}?subject={asunto}&body={cuerpo}"
-
-st.markdown(f'<a href="{mailto_link}" target="_blank" style="text-decoration: none;"><button style="width: 100%; background-color: #ff4b4b; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">📧 Abrir correo para enviar</button></a>', unsafe_allow_html=True)
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(remitente, password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        st.error(f"Error técnico: {e}")
+        return False
